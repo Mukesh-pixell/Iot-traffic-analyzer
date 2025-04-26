@@ -4,7 +4,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask_login import LoginManager
+from flask_login import LoginManager, login_required, current_user
 import datetime
 
 # Configure logging
@@ -100,94 +100,86 @@ def internal_server_error(e):
 
 # Add delete scan route
 @app.route('/delete_scan/<int:scan_id>', methods=['POST'])
+@login_required
 def delete_scan(scan_id):
-    from flask_login import login_required, current_user
     from models import Scan
     import os
     
-    @login_required
-    def delete_scan_handler(scan_id):
-        scan = Scan.query.get_or_404(scan_id)
-        
-        # Ensure the user owns this scan
-        if scan.user_id != current_user.id:
-            flash('You do not have permission to delete this scan.', 'danger')
-            return redirect(url_for('history'))
-        
-        try:
-            # Delete associated file if it exists
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], scan.filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                
-            # Delete scan from database (cascade will delete related anomalies)
-            db.session.delete(scan)
-            db.session.commit()
-            
-            flash('Scan has been successfully deleted.', 'success')
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error deleting scan: {str(e)}")
-            flash('An error occurred while deleting the scan.', 'danger')
-        
+    scan = Scan.query.get_or_404(scan_id)
+    
+    # Ensure the user owns this scan
+    if scan.user_id != current_user.id:
+        flash('You do not have permission to delete this scan.', 'danger')
         return redirect(url_for('history'))
     
-    return delete_scan_handler(scan_id)
+    try:
+        # Delete associated file if it exists
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], scan.filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+        # Delete scan from database (cascade will delete related anomalies)
+        db.session.delete(scan)
+        db.session.commit()
+        
+        flash('Scan has been successfully deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting scan: {str(e)}")
+        flash('An error occurred while deleting the scan.', 'danger')
+    
+    return redirect(url_for('history'))
 
 # Add block all IPs route
 @app.route('/block_all_ips/<int:scan_id>', methods=['POST'])
+@login_required
 def block_all_ips(scan_id):
-    from flask_login import login_required, current_user
     from models import Scan, AnomalyResult, BlockedIP
     
-    @login_required
-    def block_all_handler(scan_id):
-        scan = Scan.query.get_or_404(scan_id)
-        
-        # Ensure the user owns this scan
-        if scan.user_id != current_user.id:
-            flash('You do not have permission to modify this scan.', 'danger')
-            return redirect(url_for('view_scan', scan_id=scan_id))
-        
-        # Get all anomalies from this scan that are not already blocked
-        anomalies = AnomalyResult.query.filter_by(
-            scan_id=scan_id, 
-            is_anomaly=True, 
-            is_blocked=False
-        ).all()
-        
-        blocked_count = 0
-        
-        for anomaly in anomalies:
-            # Check if IP is already blocked
-            existing = BlockedIP.query.filter_by(ip_address=anomaly.source_ip).first()
-            if not existing:
-                # Create new blocked IP record
-                blocked_ip = BlockedIP(
-                    ip_address=anomaly.source_ip,
-                    reason=f"Automatically blocked from scan #{scan.id} as part of bulk action",
-                    blocked_by=current_user.id
-                )
-                
-                db.session.add(blocked_ip)
-                
-                # Update anomaly record
-                anomaly.is_blocked = True
-                blocked_count += 1
-        
-        try:
-            if blocked_count > 0:
-                scan.blocked_ips += blocked_count
-                db.session.commit()
-                flash(f'Successfully blocked {blocked_count} IP addresses.', 'success')
-            else:
-                flash('No new IP addresses to block.', 'info')
-                
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error blocking IPs: {str(e)}")
-            flash('An error occurred while blocking the IP addresses.', 'danger')
-        
+    scan = Scan.query.get_or_404(scan_id)
+    
+    # Ensure the user owns this scan
+    if scan.user_id != current_user.id:
+        flash('You do not have permission to modify this scan.', 'danger')
         return redirect(url_for('view_scan', scan_id=scan_id))
     
-    return block_all_handler(scan_id)
+    # Get all anomalies from this scan that are not already blocked
+    anomalies = AnomalyResult.query.filter_by(
+        scan_id=scan_id, 
+        is_anomaly=True, 
+        is_blocked=False
+    ).all()
+    
+    blocked_count = 0
+    
+    for anomaly in anomalies:
+        # Check if IP is already blocked
+        existing = BlockedIP.query.filter_by(ip_address=anomaly.source_ip).first()
+        if not existing:
+            # Create new blocked IP record
+            blocked_ip = BlockedIP(
+                ip_address=anomaly.source_ip,
+                reason=f"Automatically blocked from scan #{scan.id} as part of bulk action",
+                blocked_by=current_user.id
+            )
+            
+            db.session.add(blocked_ip)
+            
+            # Update anomaly record
+            anomaly.is_blocked = True
+            blocked_count += 1
+    
+    try:
+        if blocked_count > 0:
+            scan.blocked_ips += blocked_count
+            db.session.commit()
+            flash(f'Successfully blocked {blocked_count} IP addresses.', 'success')
+        else:
+            flash('No new IP addresses to block.', 'info')
+            
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error blocking IPs: {str(e)}")
+        flash('An error occurred while blocking the IP addresses.', 'danger')
+    
+    return redirect(url_for('pcap.results', scan_id=scan_id))
