@@ -346,7 +346,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="blockAllForm" method="POST" action="#blockAll">
+                <form id="blockAllForm" method="POST" action="{{ url_for('block_all_ips', scan_id=scan.id) }}">
                     <button type="submit" class="btn btn-danger" {% if suspicious_ips|length == 0 %}disabled{% endif %}>
                         <i class="fas fa-ban me-1"></i> Block All
                     </button>
