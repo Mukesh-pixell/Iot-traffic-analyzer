@@ -1,0 +1,493 @@
+{% extends 'base.html' %}
+
+{% block title %}Scan Results - IoT Network Traffic Analyzer{% endblock %}
+
+{% block extra_head %}
+<!-- Add extra CSS/JS libraries for this page -->
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('history') }}">History</a></li>
+                <li class="breadcrumb-item active">Scan Results</li>
+            </ol>
+        </nav>
+        
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="card-title d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-chart-line me-2"></i>Analysis Results
+                    </div>
+                    <div>
+                        <a href="{{ url_for('reports.generate_report', scan_id=scan.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye me-1"></i> View Report
+                        </a>
+                        <a href="{{ url_for('reports.download_pdf_report', scan_id=scan.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-file-pdf me-1"></i> Download PDF
+                        </a>
+                    </div>
+                </h1>
+                <p class="card-text">
+                    Analysis results for <strong>{{ scan.original_filename }}</strong> 
+                    (uploaded on {{ scan.created_at.strftime('%Y-%m-%d %H:%M') }})
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Section -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-0">Total Packets</h5>
+                        <h2 class="card-text display-4">{{ scan.total_packets }}</h2>
+                    </div>
+                    <div class="bg-white bg-opacity-25 p-3 rounded">
+                        <i class="fas fa-network-wired fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-white bg-warning mb-3 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-0">Anomalies Detected</h5>
+                        <h2 class="card-text display-4">{{ scan.anomalies_detected }}</h2>
+                    </div>
+                    <div class="bg-white bg-opacity-25 p-3 rounded">
+                        <i class="fas fa-exclamation-triangle fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card text-white bg-danger mb-3 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-0">IPs Blocked</h5>
+                        <h2 class="card-text display-4">{{ scan.blocked_ips }}</h2>
+                    </div>
+                    <div class="bg-white bg-opacity-25 p-3 rounded">
+                        <i class="fas fa-ban fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Traffic Visualization Section -->
+<div class="row mb-4">
+    <!-- Protocol Distribution -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Protocol Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="protocolChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Ports -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Top Ports</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="portChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Traffic Over Time -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Traffic Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="timeChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Anomalies Section -->
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Detected Anomalies</h5>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#blockAllModal">
+                        Block All Suspicious IPs
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if anomalies %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Source IP</th>
+                                <th>Destination IP</th>
+                                <th>Protocol</th>
+                                <th>Timestamp</th>
+                                <th>Anomaly Score</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for anomaly in anomalies %}
+                                {% if anomaly.is_anomaly %}
+                                <tr>
+                                    <td>{{ anomaly.source_ip }}</td>
+                                    <td>{{ anomaly.destination_ip }}</td>
+                                    <td>{{ anomaly.protocol }}</td>
+                                    <td>{{ anomaly.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            {% set score_percentage = (anomaly.anomaly_score|abs) * 100 %}
+                                            <div class="progress-bar bg-danger" role="progressbar" 
+                                                style="width: {{ score_percentage }}%;" 
+                                                aria-valuenow="{{ score_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ "%.3f"|format(anomaly.anomaly_score) }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if anomaly.is_blocked %}
+                                            <span class="badge bg-danger">Blocked</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Suspicious</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                                data-bs-toggle="modal" data-bs-target="#detailsModal{{ anomaly.id }}">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                        
+                                        {% if not anomaly.is_blocked %}
+                                        <form method="POST" action="{{ url_for('blocker.block_from_anomaly', anomaly_id=anomaly.id) }}" 
+                                              class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                    {% if anomaly.is_blocked %}disabled{% endif %}>
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                
+                                <!-- Details Modal -->
+                                <div class="modal fade" id="detailsModal{{ anomaly.id }}" tabindex="-1" 
+                                     aria-labelledby="detailsModalLabel{{ anomaly.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="detailsModalLabel{{ anomaly.id }}">
+                                                    Anomaly Details
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <h6>Basic Information</h6>
+                                                <ul class="list-group mb-3">
+                                                    <li class="list-group-item d-flex justify-content-between">
+                                                        <span>Source IP:</span>
+                                                        <strong>{{ anomaly.source_ip }}</strong>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between">
+                                                        <span>Destination IP:</span>
+                                                        <strong>{{ anomaly.destination_ip }}</strong>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between">
+                                                        <span>Protocol:</span>
+                                                        <strong>{{ anomaly.protocol }}</strong>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between">
+                                                        <span>Timestamp:</span>
+                                                        <strong>{{ anomaly.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</strong>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between">
+                                                        <span>Anomaly Score:</span>
+                                                        <strong>{{ "%.4f"|format(anomaly.anomaly_score) }}</strong>
+                                                    </li>
+                                                </ul>
+                                                
+                                                <h6>Additional Details</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm">
+                                                        <tbody>
+                                                            {% set details = anomaly.details|tojson|safe %}
+                                                            {% if details %}
+                                                                {% set details_dict = details|fromjson %}
+                                                                {% for key, value in details_dict.items() %}
+                                                                <tr>
+                                                                    <td>{{ key }}</td>
+                                                                    <td>{{ value }}</td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            {% else %}
+                                                                <tr>
+                                                                    <td colspan="2">No additional details available</td>
+                                                                </tr>
+                                                            {% endif %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                
+                                                <div class="alert alert-warning">
+                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                    This traffic was flagged as anomalous based on unusual patterns.
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                {% if not anomaly.is_blocked %}
+                                                <form method="POST" action="{{ url_for('blocker.block_from_anomaly', anomaly_id=anomaly.id) }}">
+                                                    <button type="submit" class="btn btn-danger">
+                                                        <i class="fas fa-ban me-1"></i> Block IP
+                                                    </button>
+                                                </form>
+                                                {% else %}
+                                                <button type="button" class="btn btn-secondary" disabled>
+                                                    <i class="fas fa-check-circle me-1"></i> IP Already Blocked
+                                                </button>
+                                                {% endif %}
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% set anomaly_count = anomalies|selectattr('is_anomaly')|list|length %}
+                            {% if anomaly_count == 0 %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-3">
+                                        <i class="fas fa-check-circle text-success fa-2x mb-3"></i>
+                                        <p class="mb-0">No anomalies detected in this scan. Your network appears to be secure.</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x mb-3 text-muted"></i>
+                    <h5>No Data Available</h5>
+                    <p class="text-muted">No anomalies were found in this scan.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Block All Confirmation Modal -->
+<div class="modal fade" id="blockAllModal" tabindex="-1" aria-labelledby="blockAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="blockAllModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Block All Suspicious IPs
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to block all suspicious IP addresses detected in this scan?</p>
+                <p>This will add the following IP addresses to your block list:</p>
+                
+                <ul class="list-group mb-3">
+                    {% set suspicious_ips = [] %}
+                    {% for anomaly in anomalies %}
+                        {% if anomaly.is_anomaly and not anomaly.is_blocked %}
+                            {% set _ = suspicious_ips.append(anomaly.source_ip) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% for ip in suspicious_ips|unique %}
+                    <li class="list-group-item">{{ ip }}</li>
+                    {% endfor %}
+                    
+                    {% if suspicious_ips|length == 0 %}
+                    <li class="list-group-item text-center">No suspicious IPs to block</li>
+                    {% endif %}
+                </ul>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This action cannot be undone. You will need to manually unblock these IPs if needed.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="blockAllForm" method="POST" action="#blockAll">
+                    <button type="submit" class="btn btn-danger" {% if suspicious_ips|length == 0 %}disabled{% endif %}>
+                        <i class="fas fa-ban me-1"></i> Block All
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Protocol Distribution Chart
+    const protocolCtx = document.getElementById('protocolChart').getContext('2d');
+    {% if stats and stats.protocol_distribution %}
+        const protocolData = {{ stats.protocol_distribution|safe }};
+        const protocolLabels = Object.keys(protocolData);
+        const protocolValues = Object.values(protocolData);
+        
+        new Chart(protocolCtx, {
+            type: 'pie',
+            data: {
+                labels: protocolLabels,
+                datasets: [{
+                    data: protocolValues,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    {% else %}
+        protocolCtx.canvas.style.display = 'none';
+        const noDataMsg = document.createElement('div');
+        noDataMsg.className = 'text-center py-5';
+        noDataMsg.innerHTML = '<i class="fas fa-chart-pie fa-3x mb-3 text-muted"></i><p>No protocol data available</p>';
+        protocolCtx.canvas.parentNode.appendChild(noDataMsg);
+    {% endif %}
+    
+    // Port Distribution Chart
+    const portCtx = document.getElementById('portChart').getContext('2d');
+    {% if stats and stats.port_distribution %}
+        const portData = {{ stats.port_distribution|safe }};
+        const portLabels = Object.keys(portData);
+        const portValues = Object.values(portData);
+        
+        new Chart(portCtx, {
+            type: 'bar',
+            data: {
+                labels: portLabels,
+                datasets: [{
+                    label: 'Packet Count',
+                    data: portValues,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    {% else %}
+        portCtx.canvas.style.display = 'none';
+        const noDataMsg = document.createElement('div');
+        noDataMsg.className = 'text-center py-5';
+        noDataMsg.innerHTML = '<i class="fas fa-chart-bar fa-3x mb-3 text-muted"></i><p>No port data available</p>';
+        portCtx.canvas.parentNode.appendChild(noDataMsg);
+    {% endif %}
+    
+    // Traffic Over Time Chart
+    const timeCtx = document.getElementById('timeChart').getContext('2d');
+    {% if stats and stats.time_distribution %}
+        const timeData = {{ stats.time_distribution|safe }};
+        const timeLabels = Object.keys(timeData);
+        const timeValues = Object.values(timeData);
+        
+        new Chart(timeCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'Packet Count',
+                    data: timeValues,
+                    fill: true,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    {% else %}
+        timeCtx.canvas.style.display = 'none';
+        const noDataMsg = document.createElement('div');
+        noDataMsg.className = 'text-center py-5';
+        noDataMsg.innerHTML = '<i class="fas fa-chart-line fa-3x mb-3 text-muted"></i><p>No time distribution data available</p>';
+        timeCtx.canvas.parentNode.appendChild(noDataMsg);
+    {% endif %}
+});
+</script>
+{% endblock %}

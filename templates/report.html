@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+
+{% block title %}Analysis Report - IoT Network Traffic Analyzer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('view_scan', scan_id=scan.id) }}">Scan Results</a></li>
+                <li class="breadcrumb-item active">Report</li>
+            </ol>
+        </nav>
+        
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="card-title d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-file-alt me-2"></i>Analysis Report
+                    </div>
+                    <div>
+                        <a href="{{ url_for('reports.download_pdf_report', scan_id=scan.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-file-pdf me-1"></i> Download PDF
+                        </a>
+                    </div>
+                </h1>
+                <p class="card-text">
+                    Comprehensive analysis report for <strong>{{ scan.original_filename }}</strong> 
+                    (uploaded on {{ scan.created_at.strftime('%Y-%m-%d %H:%M') }})
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Scan Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <th>File Name:</th>
+                                    <td>{{ scan.original_filename }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Scan ID:</th>
+                                    <td>{{ scan.id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Date/Time:</th>
+                                    <td>{{ scan.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td>
+                                        {% if scan.status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif scan.status == 'processing' or scan.status == 'analyzed' %}
+                                            <span class="badge bg-warning">Processing</span>
+                                        {% elif scan.status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ scan.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <th>Total Packets:</th>
+                                    <td>{{ scan.total_packets }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Anomalies Detected:</th>
+                                    <td>{{ scan.anomalies_detected }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Blocked IPs:</th>
+                                    <td>{{ scan.blocked_ips }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Analyzed By:</th>
+                                    <td>{{ scan.user.username }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Traffic Analysis Section -->
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i>Traffic Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Protocol Distribution -->
+                    <div class="col-md-6 mb-4">
+                        <h6 class="fw-bold mb-3">Protocol Distribution</h6>
+                        <canvas id="protocolChart" height="250"></canvas>
+                    </div>
+                    
+                    <!-- Top Ports -->
+                    <div class="col-md-6 mb-4">
+                        <h6 class="fw-bold mb-3">Top Ports</h6>
+                        <canvas id="portChart" height="250"></canvas>
+                    </div>
+                    
+                    <!-- Traffic Over Time -->
+                    <div class="col-md-12">
+                        <h6 class="fw-bold mb-3">Traffic Over Time</h6>
+                        <canvas id="timeChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Anomaly Detection Section -->
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Anomaly Detection Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <h6 class="fw-bold mb-3">Anomaly Score Distribution</h6>
+                        <canvas id="anomalyScoreChart" height="200"></canvas>
+                    </div>
+                </div>
+                
+                {% set anomaly_count = anomalies|selectattr('is_anomaly')|list|length %}
+                
+                {% if anomaly_count > 0 %}
+                    <h6 class="fw-bold mt-4 mb-3">Detected Anomalies</h6>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Source IP</th>
+                                    <th>Destination IP</th>
+                                    <th>Protocol</th>
+                                    <th>Timestamp</th>
+                                    <th>Anomaly Score</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for anomaly in anomalies %}
+                                    {% if anomaly.is_anomaly %}
+                                        <tr>
+                                            <td>{{ anomaly.source_ip }}</td>
+                                            <td>{{ anomaly.destination_ip }}</td>
+                                            <td>{{ anomaly.protocol }}</td>
+                                            <td>{{ anomaly.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                            <td>{{ "%.4f"|format(anomaly.anomaly_score) }}</td>
+                                            <td>
+                                                {% if anomaly.is_blocked %}
+                                                    <span class="badge bg-danger">Blocked</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">Suspicious</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success mt-4">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>No Anomalies Detected</strong> - The analyzed network traffic appears to be normal. No suspicious patterns were found.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conclusion Section -->
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Conclusion</h5>
+            </div>
+            <div class="card-body">
+                <p>This report presents the analysis of network traffic data captured on {{ scan.created_at.strftime('%Y-%m-%d') }}.</p>
+                
+                {% if scan.anomalies_detected > 0 %}
+                    <p>The analysis identified <strong>{{ scan.anomalies_detected }}</strong> potential anomalies in the network traffic. 
+                       These anomalies may indicate unauthorized access attempts, malware activity, or other security concerns.</p>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Recommendation:</strong> Investigate the identified anomalies further and take appropriate mitigation actions.
+                        Consider blocking suspicious IP addresses and monitoring the network for similar patterns.
+                    </div>
+                {% else %}
+                    <p>No abnormal traffic patterns were detected in this scan. The analyzed network traffic appears to be within normal parameters.</p>
+                    
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Recommendation:</strong> Continue regular monitoring of network traffic to maintain security awareness.
+                        Periodic scans help ensure early detection of potential security threats.
+                    </div>
+                {% endif %}
+                
+                <h6 class="fw-bold mt-4">Next Steps:</h6>
+                <ol>
+                    <li>Review the detailed anomaly information provided in this report</li>
+                    <li>Investigate any suspicious source/destination IP addresses</li>
+                    <li>Consider blocking persistent offenders using the IP blocking feature</li>
+                    <li>Schedule regular scans to monitor for new anomalies</li>
+                    <li>Update your network security policies based on these findings</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Protocol Distribution Chart
+    {% if stats and stats.protocol_distribution %}
+        createProtocolChart('protocolChart', {{ stats.protocol_distribution|safe }});
+    {% else %}
+        showNoDataMessage(document.getElementById('protocolChart').getContext('2d'), 'No protocol data available');
+    {% endif %}
+    
+    // Port Distribution Chart
+    {% if stats and stats.port_distribution %}
+        createPortChart('portChart', {{ stats.port_distribution|safe }});
+    {% else %}
+        showNoDataMessage(document.getElementById('portChart').getContext('2d'), 'No port data available');
+    {% endif %}
+    
+    // Traffic Over Time Chart
+    {% if stats and stats.time_distribution %}
+        createTimeChart('timeChart', {{ stats.time_distribution|safe }});
+    {% else %}
+        showNoDataMessage(document.getElementById('timeChart').getContext('2d'), 'No time distribution data available');
+    {% endif %}
+    
+    // Anomaly Score Distribution Chart
+    {% if anomalies %}
+        const anomalyData = [];
+        {% for anomaly in anomalies %}
+            {% if anomaly.is_anomaly %}
+                anomalyData.push({
+                    id: {{ anomaly.id }},
+                    source_ip: "{{ anomaly.source_ip }}",
+                    destination_ip: "{{ anomaly.destination_ip }}",
+                    protocol: "{{ anomaly.protocol }}",
+                    anomaly_score: {{ anomaly.anomaly_score }},
+                    is_blocked: {{ anomaly.is_blocked|tojson }}
+                });
+            {% endif %}
+        {% endfor %}
+        
+        if (anomalyData.length > 0) {
+            createAnomalyScoreChart('anomalyScoreChart', anomalyData);
+        } else {
+            showNoDataMessage(document.getElementById('anomalyScoreChart').getContext('2d'), 'No anomalies detected');
+        }
+    {% else %}
+        showNoDataMessage(document.getElementById('anomalyScoreChart').getContext('2d'), 'No anomaly data available');
+    {% endif %}
+});
+</script>
+{% endblock %}

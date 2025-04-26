@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Block IP - IoT Network Traffic Analyzer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('blocker.blocked_ips') }}">Blocked IPs</a></li>
+                <li class="breadcrumb-item active">Block IP</li>
+            </ol>
+        </nav>
+        
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="card-title">
+                    <i class="fas fa-ban me-2"></i>Block IP Address
+                </h1>
+                <p class="card-text">Manually block an IP address to prevent traffic from a suspicious source.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Block IP Form</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('blocker.block_ip') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label for="ip_address" class="form-label">{{ form.ip_address.label }}</label>
+                        {{ form.ip_address(class="form-control", placeholder="e.g. 192.168.1.1") }}
+                        {% if form.ip_address.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.ip_address.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Enter the IP address you want to block.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">{{ form.reason.label }}</label>
+                        {{ form.reason(class="form-control", rows=4, placeholder="Provide a reason for blocking this IP address...") }}
+                        {% if form.reason.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.reason.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Explain why this IP is being blocked for future reference.</div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Be sure you want to block this IP address. Blocking legitimate IPs could disrupt network traffic.
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('blocker.blocked_ips') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Cancel
+                        </a>
+                        {{ form.submit(class="btn btn-danger") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Information</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="card-subtitle mb-3">IP Address Format</h6>
+                <p>Enter a valid IPv4 address in the format: xxx.xxx.xxx.xxx</p>
+                <p>Examples:</p>
+                <ul>
+                    <li>192.168.1.1</li>
+                    <li>10.0.0.5</li>
+                    <li>8.8.8.8</li>
+                </ul>
+                
+                <h6 class="card-subtitle mb-3 mt-4">Important Notes</h6>
+                <ol>
+                    <li>Blocking an IP address will prevent it from accessing your network</li>
+                    <li>Always provide a clear reason for future reference</li>
+                    <li>You can unblock an IP address at any time</li>
+                    <li>Consider checking if the IP is already blocked before submitting</li>
+                </ol>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Tip:</strong> If you're blocking an IP due to automated scan results, include the scan ID in your reason.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

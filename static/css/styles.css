@@ -1,0 +1,179 @@
+/* 
+* IoT Network Traffic Analyzer Custom Styles 
+* Built on Bootstrap Dark Theme
+*/
+
+/* General Styles */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.footer {
+    margin-top: auto;
+}
+
+/* Card Styles */
+.card {
+    margin-bottom: 1.5rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    font-weight: 500;
+}
+
+/* Dashboard Cards */
+.card .bg-opacity-25 {
+    border-radius: 0.5rem;
+}
+
+/* Upload Page */
+.dropzone {
+    border: 2px dashed var(--bs-gray-500);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.dropzone:hover, .dropzone.border-primary {
+    border-color: var(--bs-primary) !important;
+}
+
+/* Analysis Page Progress */
+#analysisProgress {
+    transition: width 0.5s ease;
+}
+
+/* Results Page */
+.progress-bar[aria-valuenow="0"] {
+    min-width: 2em;
+}
+
+/* Custom Badges */
+.badge.bg-success {
+    background-color: var(--bs-success) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--bs-warning) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--bs-danger) !important;
+}
+
+/* Custom Alert Styles */
+.alert {
+    border: none;
+}
+
+.alert-success {
+    background-color: rgba(var(--bs-success-rgb), 0.15);
+    color: var(--bs-success);
+}
+
+.alert-danger {
+    background-color: rgba(var(--bs-danger-rgb), 0.15);
+    color: var(--bs-danger);
+}
+
+.alert-warning {
+    background-color: rgba(var(--bs-warning-rgb), 0.15);
+    color: var(--bs-warning);
+}
+
+.alert-info {
+    background-color: rgba(var(--bs-info-rgb), 0.15);
+    color: var(--bs-info);
+}
+
+/* Custom Button Styles */
+.btn-primary {
+    box-shadow: 0 0.125rem 0.25rem rgba(var(--bs-primary-rgb), 0.4);
+}
+
+.btn-danger {
+    box-shadow: 0 0.125rem 0.25rem rgba(var(--bs-danger-rgb), 0.4);
+}
+
+/* Table Styles */
+.table th {
+    font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.075);
+}
+
+/* Chart Containers */
+canvas {
+    width: 100% !important;
+}
+
+/* List Groups */
+.list-group-item {
+    background-color: var(--bs-dark);
+    border-color: rgba(255, 255, 255, 0.125);
+}
+
+/* Form Styles */
+.form-control, .form-select {
+    background-color: var(--bs-dark);
+    border-color: rgba(255, 255, 255, 0.125);
+    color: var(--bs-light);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.form-control::placeholder {
+    color: var(--bs-gray-500);
+}
+
+/* Pagination */
+.pagination .page-link {
+    background-color: var(--bs-dark);
+    border-color: rgba(255, 255, 255, 0.125);
+}
+
+.pagination .page-link:hover {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: white;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+/* Custom Modal Styles */
+.modal-content {
+    background-color: var(--bs-dark);
+    border-color: rgba(255, 255, 255, 0.125);
+}
+
+.modal-header {
+    border-bottom-color: rgba(255, 255, 255, 0.125);
+}
+
+.modal-footer {
+    border-top-color: rgba(255, 255, 255, 0.125);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .card-title {
+        font-size: 1.5rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}
