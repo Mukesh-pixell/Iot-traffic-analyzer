@@ -59,45 +59,98 @@ def detect_anomalies(scan_id):
 
 def extract_features_from_pcap(pcap_file):
     """Extract features from PCAP file for anomaly detection"""
-    packets = rdpcap(pcap_file)
+    try:
+        packets = rdpcap(pcap_file)
+        
+        # Prepare data structures for feature extraction
+        packet_features = []
+        
+        # Process each packet
+        for packet in packets:
+            try:
+                if IP in packet:
+                    features = {}
+                    
+                    # Basic IP features
+                    features['src_ip'] = str(packet[IP].src)
+                    features['dst_ip'] = str(packet[IP].dst)
+                    features['protocol'] = int(packet[IP].proto)
+                    features['ttl'] = int(packet[IP].ttl)
+                    features['packet_size'] = int(len(packet))
+                    
+                    # Convert packet time to float to avoid EDecimal issues
+                    try:
+                        packet_time = float(packet.time)
+                        features['timestamp'] = datetime.fromtimestamp(packet_time)
+                    except (ValueError, TypeError) as e:
+                        # Use current time if packet time is invalid
+                        logger.warning(f"Invalid packet time: {e}. Using current time.")
+                        features['timestamp'] = datetime.now()
+                    
+                    # Protocol-specific features
+                    if TCP in packet:
+                        features['src_port'] = int(packet[TCP].sport)
+                        features['dst_port'] = int(packet[TCP].dport)
+                        
+                        # Handle TCP flags - convert to integer safely
+                        try:
+                            tcp_flags = packet[TCP].flags
+                            # Directly use string representation which converts to int
+                            features['tcp_flags'] = int(str(tcp_flags).replace('FlagValue', '').strip())
+                        except (ValueError, TypeError, AttributeError):
+                            # Default value if conversion fails
+                            features['tcp_flags'] = 0
+                            
+                        # Handle TCP window
+                        try:
+                            features['tcp_window'] = int(packet[TCP].window)
+                        except (ValueError, TypeError, AttributeError):
+                            features['tcp_window'] = 0
+                            
+                    elif UDP in packet:
+                        features['src_port'] = int(packet[UDP].sport)
+                        features['dst_port'] = int(packet[UDP].dport)
+                        
+                        # Handle UDP length
+                        try:
+                            features['udp_len'] = int(packet[UDP].len)
+                        except (ValueError, TypeError, AttributeError):
+                            features['udp_len'] = 0
+                    else:
+                        features['src_port'] = 0
+                        features['dst_port'] = 0
+                    
+                    packet_features.append(features)
+            except Exception as e:
+                logger.warning(f"Error processing packet in anomaly detector: {str(e)}")
+                continue
     
-    # Prepare data structures for feature extraction
-    packet_features = []
-    
-    # Process each packet
-    for packet in packets:
-        try:
-            if IP in packet:
-                features = {}
-                
-                # Basic IP features
-                features['src_ip'] = packet[IP].src
-                features['dst_ip'] = packet[IP].dst
-                features['protocol'] = packet[IP].proto
-                features['ttl'] = packet[IP].ttl
-                features['packet_size'] = len(packet)
-                # Convert packet time to float to avoid EDecimal issues
-                packet_time = float(packet.time)
-                features['timestamp'] = datetime.fromtimestamp(packet_time)
-                
-                # Protocol-specific features
-                if TCP in packet:
-                    features['src_port'] = packet[TCP].sport
-                    features['dst_port'] = packet[TCP].dport
-                    features['tcp_flags'] = packet[TCP].flags
-                    features['tcp_window'] = packet[TCP].window
-                elif UDP in packet:
-                    features['src_port'] = packet[UDP].sport
-                    features['dst_port'] = packet[UDP].dport
-                    features['udp_len'] = packet[UDP].len
-                else:
-                    features['src_port'] = 0
-                    features['dst_port'] = 0
-                
-                packet_features.append(features)
-        except Exception as e:
-            logger.warning(f"Error processing packet in anomaly detector: {str(e)}")
-            continue
+        if not packet_features:
+            logger.warning("No valid packets found in the PCAP file")
+            # Create a minimal default packet to prevent DataFrame errors
+            packet_features.append({
+                'src_ip': '0.0.0.0',
+                'dst_ip': '0.0.0.0',
+                'protocol': 0,
+                'ttl': 0,
+                'packet_size': 0,
+                'timestamp': datetime.now(),
+                'src_port': 0,
+                'dst_port': 0
+            })
+    except Exception as e:
+        logger.error(f"Error reading PCAP file: {str(e)}")
+        # Create a minimal default packet to prevent DataFrame errors
+        packet_features.append({
+            'src_ip': '0.0.0.0',
+            'dst_ip': '0.0.0.0',
+            'protocol': 0,
+            'ttl': 0,
+            'packet_size': 0,
+            'timestamp': datetime.now(),
+            'src_port': 0,
+            'dst_port': 0
+        })
     
     # Convert to DataFrame
     df = pd.DataFrame(packet_features)
