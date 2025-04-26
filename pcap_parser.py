@@ -129,28 +129,33 @@ def process_pcap_statistics(packets, scan):
     timestamps = []
     
     for packet in packets:
-        # Extract packet timestamp
-        timestamp = datetime.datetime.fromtimestamp(packet.time)
-        timestamps.append(timestamp)
-        
-        # Extract packet size
-        packet_sizes.append(len(packet))
-        
-        # Extract protocol information if it's an IP packet
-        if IP in packet:
-            protocol = packet[IP].proto
-            protocol_name = {1: 'ICMP', 6: 'TCP', 17: 'UDP'}.get(protocol, str(protocol))
+        try:
+            # Extract packet timestamp - convert to float first to avoid EDecimal issue
+            packet_time = float(packet.time)
+            timestamp = datetime.datetime.fromtimestamp(packet_time)
+            timestamps.append(timestamp)
             
-            protocol_counts[protocol_name] = protocol_counts.get(protocol_name, 0) + 1
+            # Extract packet size
+            packet_sizes.append(len(packet))
             
-            # Extract port information for TCP/UDP
-            if protocol_name in ['TCP', 'UDP']:
-                if hasattr(packet, 'sport'):
-                    src_port = packet.sport
-                    port_counts[f"{src_port}"] = port_counts.get(f"{src_port}", 0) + 1
-                if hasattr(packet, 'dport'):
-                    dst_port = packet.dport
-                    port_counts[f"{dst_port}"] = port_counts.get(f"{dst_port}", 0) + 1
+            # Extract protocol information if it's an IP packet
+            if IP in packet:
+                protocol = packet[IP].proto
+                protocol_name = {1: 'ICMP', 6: 'TCP', 17: 'UDP'}.get(protocol, str(protocol))
+                
+                protocol_counts[protocol_name] = protocol_counts.get(protocol_name, 0) + 1
+                
+                # Extract port information for TCP/UDP
+                if protocol_name in ['TCP', 'UDP']:
+                    if hasattr(packet, 'sport'):
+                        src_port = packet.sport
+                        port_counts[f"{src_port}"] = port_counts.get(f"{src_port}", 0) + 1
+                    if hasattr(packet, 'dport'):
+                        dst_port = packet.dport
+                        port_counts[f"{dst_port}"] = port_counts.get(f"{dst_port}", 0) + 1
+        except Exception as e:
+            logger.warning(f"Error processing packet: {str(e)}")
+            continue
     
     # Prepare time distribution data - group by hour
     time_distrib = {}

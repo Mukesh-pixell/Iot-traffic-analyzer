@@ -66,32 +66,38 @@ def extract_features_from_pcap(pcap_file):
     
     # Process each packet
     for packet in packets:
-        if IP in packet:
-            features = {}
-            
-            # Basic IP features
-            features['src_ip'] = packet[IP].src
-            features['dst_ip'] = packet[IP].dst
-            features['protocol'] = packet[IP].proto
-            features['ttl'] = packet[IP].ttl
-            features['packet_size'] = len(packet)
-            features['timestamp'] = datetime.fromtimestamp(packet.time)
-            
-            # Protocol-specific features
-            if TCP in packet:
-                features['src_port'] = packet[TCP].sport
-                features['dst_port'] = packet[TCP].dport
-                features['tcp_flags'] = packet[TCP].flags
-                features['tcp_window'] = packet[TCP].window
-            elif UDP in packet:
-                features['src_port'] = packet[UDP].sport
-                features['dst_port'] = packet[UDP].dport
-                features['udp_len'] = packet[UDP].len
-            else:
-                features['src_port'] = 0
-                features['dst_port'] = 0
-            
-            packet_features.append(features)
+        try:
+            if IP in packet:
+                features = {}
+                
+                # Basic IP features
+                features['src_ip'] = packet[IP].src
+                features['dst_ip'] = packet[IP].dst
+                features['protocol'] = packet[IP].proto
+                features['ttl'] = packet[IP].ttl
+                features['packet_size'] = len(packet)
+                # Convert packet time to float to avoid EDecimal issues
+                packet_time = float(packet.time)
+                features['timestamp'] = datetime.fromtimestamp(packet_time)
+                
+                # Protocol-specific features
+                if TCP in packet:
+                    features['src_port'] = packet[TCP].sport
+                    features['dst_port'] = packet[TCP].dport
+                    features['tcp_flags'] = packet[TCP].flags
+                    features['tcp_window'] = packet[TCP].window
+                elif UDP in packet:
+                    features['src_port'] = packet[UDP].sport
+                    features['dst_port'] = packet[UDP].dport
+                    features['udp_len'] = packet[UDP].len
+                else:
+                    features['src_port'] = 0
+                    features['dst_port'] = 0
+                
+                packet_features.append(features)
+        except Exception as e:
+            logger.warning(f"Error processing packet in anomaly detector: {str(e)}")
+            continue
     
     # Convert to DataFrame
     df = pd.DataFrame(packet_features)
