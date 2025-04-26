@@ -135,6 +135,7 @@ def delete_scan(scan_id):
 @login_required
 def block_all_ips(scan_id):
     from models import Scan, AnomalyResult, BlockedIP
+    from utils import is_valid_ip
     
     scan = Scan.query.get_or_404(scan_id)
     
@@ -151,14 +152,23 @@ def block_all_ips(scan_id):
     ).all()
     
     blocked_count = 0
+    invalid_count = 0
     
     for anomaly in anomalies:
+        ip_address = anomaly.source_ip
+        
+        # Validate IP address
+        if not is_valid_ip(ip_address):
+            logger.warning(f"Invalid IP address format: {ip_address}")
+            invalid_count += 1
+            continue
+            
         # Check if IP is already blocked
-        existing = BlockedIP.query.filter_by(ip_address=anomaly.source_ip).first()
+        existing = BlockedIP.query.filter_by(ip_address=ip_address).first()
         if not existing:
             # Create new blocked IP record
             blocked_ip = BlockedIP(
-                ip_address=anomaly.source_ip,
+                ip_address=ip_address,
                 reason=f"Automatically blocked from scan #{scan.id} as part of bulk action",
                 blocked_by=current_user.id
             )
@@ -174,8 +184,13 @@ def block_all_ips(scan_id):
             scan.blocked_ips += blocked_count
             db.session.commit()
             flash(f'Successfully blocked {blocked_count} IP addresses.', 'success')
+            if invalid_count > 0:
+                flash(f'Skipped {invalid_count} invalid IP addresses.', 'warning')
         else:
-            flash('No new IP addresses to block.', 'info')
+            if invalid_count > 0:
+                flash(f'No IPs were blocked. {invalid_count} invalid IP addresses were skipped.', 'warning')
+            else:
+                flash('No new IP addresses to block.', 'info')
             
     except Exception as e:
         db.session.rollback()

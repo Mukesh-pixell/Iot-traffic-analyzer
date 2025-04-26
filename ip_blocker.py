@@ -57,6 +57,8 @@ def block_ip():
 @blocker_bp.route('/block_from_anomaly/<int:anomaly_id>', methods=['POST'])
 @login_required
 def block_from_anomaly(anomaly_id):
+    from utils import is_valid_ip
+    
     anomaly = AnomalyResult.query.get_or_404(anomaly_id)
     
     # Verify user has permission
@@ -65,6 +67,11 @@ def block_from_anomaly(anomaly_id):
         return redirect(url_for('dashboard'))
     
     ip_address = anomaly.source_ip
+    
+    # Validate IP address
+    if not is_valid_ip(ip_address):
+        flash(f'Invalid IP address format: {ip_address}', 'danger')
+        return redirect(url_for('pcap.results', scan_id=anomaly.scan_id))
     
     # Check if already blocked
     existing = BlockedIP.query.filter_by(ip_address=ip_address).first()

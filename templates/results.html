@@ -241,15 +241,20 @@
                                                 <div class="table-responsive">
                                                     <table class="table table-sm">
                                                         <tbody>
-                                                            {% set details = anomaly.details|tojson|safe %}
-                                                            {% if details %}
-                                                                {% set details_dict = details|fromjson %}
-                                                                {% for key, value in details_dict.items() %}
-                                                                <tr>
-                                                                    <td>{{ key }}</td>
-                                                                    <td>{{ value }}</td>
-                                                                </tr>
-                                                                {% endfor %}
+                                                            {% if anomaly.details %}
+                                                                {% set details_dict = anomaly.details|fromjson %}
+                                                                {% if details_dict is mapping %}
+                                                                    {% for key, value in details_dict.items() %}
+                                                                    <tr>
+                                                                        <td>{{ key }}</td>
+                                                                        <td>{{ value }}</td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                {% else %}
+                                                                    <tr>
+                                                                        <td colspan="2">{{ anomaly.details }}</td>
+                                                                    </tr>
+                                                                {% endif %}
                                                             {% else %}
                                                                 <tr>
                                                                     <td colspan="2">No additional details available</td>
