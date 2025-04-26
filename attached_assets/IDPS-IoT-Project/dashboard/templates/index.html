@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>IDPS Alerts</title>
+</head>
+<body>
+  <h2>Detected Anomalies</h2>
+  {% if alerts %}
+  <table border="1">
+    <tr>
+      <th>No</th><th>Time</th><th>Source</th><th>Destination</th><th>Protocol</th><th>Length</th>
+    </tr>
+    {% for alert in alerts %}
+    <tr>
+      <td>{{ alert['No'] }}</td>
+      <td>{{ alert['Time'] }}</td>
+      <td>{{ alert['Source'] }}</td>
+      <td>{{ alert['Destination'] }}</td>
+      <td>{{ alert['Protocol'] }}</td>
+      <td>{{ alert['Length'] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No alerts detected yet.</p>
+  {% endif %}
+</body>
+</html>

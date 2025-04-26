@@ -1,0 +1,27 @@
+[
+    {
+      "id": "alert-node",
+      "type": "inject",
+      "name": "Simulated Alert",
+      "props": [
+        {
+          "p": "payload"
+        }
+      ],
+      "payload": "{\"alert\":\"DoS Attack Detected\",\"source_ip\":\"192.168.0.12\"}",
+      "payloadType": "json",
+      "repeat": "",
+      "crontab": "",
+      "once": false,
+      "wires": [["alert-display"]]
+    },
+    {
+      "id": "alert-display",
+      "type": "debug",
+      "name": "Show Alert",
+      "active": true,
+      "tosidebar": true,
+      "wires": []
+    }
+  ]
+  
